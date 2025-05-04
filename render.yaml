@@ -1,0 +1,96 @@
+# render.yaml para deploy completo do Dify no Render
+
+services:
+  - name: dify-api
+    type: web
+    runtime: docker
+    repo: https://github.com/langgenius/dify
+    plan: starter
+    dockerContext: .
+    dockerfilePath: ./docker/api/Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_SECRET
+        value: supersecretkey  # <--- Altera por segurança
+      - key: APP_HOST
+        value: https://dify-web.onrender.com
+      - key: CONSOLE_DOMAIN
+        value: https://dify-web.onrender.com
+      - key: API_DOMAIN
+        value: https://dify-api.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dify-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: dify-redis
+          type: redis
+          property: connectionString
+      - key: MEILI_HOST
+        value: http://dify-meilisearch:7700
+      - key: OPENDAL_STORAGE
+        value: s3
+      - key: S3_ENDPOINT
+        value: http://dify-minio:9000
+      - key: S3_BUCKET
+        value: dify-files
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_ACCESS_KEY
+        value: minioadmin
+      - key: S3_SECRET_KEY
+        value: minioadmin
+      - key: S3_FORCE_PATH_STYLE
+        value: true
+      - key: WORKER_CLASS
+        value: gevent
+      - key: NUMEXPR_MAX_THREADS
+        value: 16
+
+  - name: dify-web
+    type: web
+    runtime: docker
+    repo: https://github.com/langgenius/dify
+    plan: starter
+    dockerContext: .
+    dockerfilePath: ./docker/web/Dockerfile
+    envVars:
+      - key: API_DOMAIN
+        value: https://dify-api.onrender.com
+
+  - name: dify-meilisearch
+    type: web
+    runtime: docker
+    repo: https://github.com/meilisearch/meilisearch-docker
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: MEILI_NO_ANALYTICS
+        value: true
+    healthCheckPath: /
+    plan: starter
+    autoDeploy: false
+
+  - name: dify-minio
+    type: web
+    runtime: docker
+    repo: https://github.com/minio/minio
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: MINIO_ROOT_USER
+        value: minioadmin
+      - key: MINIO_ROOT_PASSWORD
+        value: minioadmin
+    startCommand: server /data --console-address ":9001"
+    plan: starter
+
+  - name: dify-postgres
+    type: database
+    plan: starter
+
+  - name: dify-redis
+    type: redis
+    plan: starter
